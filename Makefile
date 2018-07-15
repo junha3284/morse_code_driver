@@ -14,8 +14,8 @@ else
 	KERNEL_SOURCE := ${HOME}/cmpt433/work/bb-kernel/KERNEL/
 	PWD := $(shell pwd)
 	# Linux kernel 4.13 (which has cape manager support)
-	CC=${HOME}/cmpt433/work/bb-kernel/dl/gcc-linaro-6.4.1-2017.08-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
-	BUILD=bone3
+	CC=${HOME}/cmpt433/work/bb-kernel/dl/gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+	BUILD=bone22
 	CORES=4
 	image=zImage
 	PUBLIC_DRIVER_PWD=~/cmpt433/public/drivers
