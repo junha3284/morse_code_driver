@@ -21,28 +21,17 @@ DEFINE_LED_TRIGGER(morse_code);
 
 #define LED_ON_TIME_ms 100
 #define LED_OFF_TIME_ms 900
-#define MOSE_LED_TIME_ms 100
 
-static void my_led_blink(void)
+static void Mose_led_turn_on (int time)
 {
 	led_trigger_event(morse_code, LED_FULL);
-	printk(KERN_INFO "Turn on\n");
-	msleep(LED_ON_TIME_ms);
-	printk(KERN_INFO "Turn off\n");
-	led_trigger_event(morse_code, LED_OFF);
-	msleep(LED_OFF_TIME_ms);
+	msleep(time);
 }
 
-static void Mose_led_turn_on (void)
-{
-	led_trigger_event(morse_code, LED_FULL);
-	msleep(MOSE_LED_TIME_ms);
-}
-
-static void Mose_led_turn_off (void)
+static void Mose_led_turn_off (int time)
 {
 	led_trigger_event(morse_code, LED_OFF);
-	msleep(MOSE_LED_TIME_ms);
+	msleep(time);
 }
 
 static void led_register(void)
@@ -57,9 +46,15 @@ static void led_unregister(void)
     led_trigger_unregister_simple(morse_code);
 }
 
+
 /******************************************************
- * Callbacks
+ * Morse Code 
  ******************************************************/
+
+static int dottime = 500; // ms
+module_param(dottime, int, S_IRUGO);
+MODULE_PARM_DESC(dottime, "Dot time in ms (basic unit of morse code)");
+
 static unsigned short morsecode_codes[] = {
 		0xB800,	// A 1011 1
 		0xEA80,	// B 1110 1010 1
@@ -119,29 +114,30 @@ static void moseCodeGenerator(char c)
         index = c - 'A';
     else if (c == ' '){
 	    led_trigger_event(morse_code, LED_OFF);
-	    msleep(MOSE_LED_TIME_ms*7);
-	    printk(KERN_INFO "SPACE\n");
+	    msleep(dottime*7);
         return;
     }
     else
         return;
 
     code = reverseBits(morsecode_codes[index]);
-    printk(KERN_INFO "%08x", code);
     while (code != 0){
         if ((code & mask) == mask){
-            Mose_led_turn_on();
+            Mose_led_turn_on(dottime);
         }
         else {
-            Mose_led_turn_off();
+            Mose_led_turn_off(dottime);
         }
         code >>=1;
     }
         
 	led_trigger_event(morse_code, LED_OFF);
-	msleep(MOSE_LED_TIME_ms*3);
+	msleep(dottime*3);
 }
 
+/******************************************************
+ * Callbacks
+ ******************************************************/
 
 static int my_open(struct inode *inode, struct file *file)
 {
