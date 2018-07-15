@@ -103,6 +103,7 @@ static unsigned int reverseBits(unsigned int num)
        count--;
     }
     reverse_num <<= count;
+    reverse_num >>= 16;
     return reverse_num;
 }
 
@@ -124,9 +125,9 @@ static void moseCodeGenerator(char c)
     }
     else
         return;
-	printk(KERN_INFO "start\n");
 
     code = reverseBits(morsecode_codes[index]);
+    printk(KERN_INFO "%08x", code);
     while (code != 0){
         if ((code & mask) == mask){
             Mose_led_turn_on();
