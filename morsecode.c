@@ -59,7 +59,7 @@ static void led_unregister(void)
  * Morse Code 
  ******************************************************/
 
-static int dottime = 500; // ms
+static int dottime = 200; // ms
 module_param(dottime, int, S_IRUGO);
 MODULE_PARM_DESC(dottime, "Dot time in ms (basic unit of morse code)");
 
@@ -267,6 +267,12 @@ static int __init my_init(void)
 
     // LED:
     led_register();
+
+    // Driver Parameter:
+    if (dottime < 1 || dottime > 2000){
+        dottime = 200;
+        printk(KERN_ERR "ERROR: input for dottime is out of range. set to the default\n");
+    }
 
 	return ret;
 }
