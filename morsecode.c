@@ -12,6 +12,14 @@
 
 #define MY_DEVICE_FILE  "morse-code"
 
+/**************************************************************
+ * FIFO Support
+ *************************************************************/
+
+#include <linux/kfifo.h>
+#define FIFO_SIZE 256*256
+static DECLARE_KFIFO(morse_fifo, char, FIFO_SIZE);
+
 /******************************************************
  * LED 
  ******************************************************/
@@ -102,7 +110,7 @@ static unsigned int reverseBits(unsigned int num)
     return reverse_num;
 }
 
-static void moseCodeGenerator(char c)
+static int moseCodeGenerator(char c)
 {
     
     int index;
@@ -113,44 +121,60 @@ static void moseCodeGenerator(char c)
     else if ('A' <=  c && c <= 'Z')
         index = c - 'A';
     else if (c == ' '){
+        kfifo_put(&morse_fifo,' ');
+        kfifo_put(&morse_fifo,' ');
+        if(!(kfifo_put(&morse_fifo,' ')
+                & kfifo_put(&morse_fifo,' ')
+                & kfifo_put(&morse_fifo,' '))
+                ){
+            return -EFAULT;
+        }
 	    led_trigger_event(morse_code, LED_OFF);
 	    msleep(dottime*7);
-        return;
+        return 0;
     }
     else
-        return;
+        return 0;
 
     code = reverseBits(morsecode_codes[index]);
-
-	printk(KERN_INFO "%x\n", code);
-    printk(KERN_INFO "%x\n", code & mask);
-
-    
     while (code != 0){
-        if ((code & mask) == 0x7){
+        if ((code & mask) == 0x7){      // 111
+            if(!kfifo_put(&morse_fifo, '-')){
+                return -EFAULT;
+            }
             Mose_led_turn_on(dottime*3);
             code >>=3;
         }
-        else if ((code & mask) == 0x6){
+        else if ((code & mask) == 0x6){ // 110
             Mose_led_turn_off(dottime);
             code >>=1;
         }
-        else if ((code & mask) == 0x5){
+        else if ((code & mask) == 0x5){ // 101
+            if(!kfifo_put(&morse_fifo, '.')){
+                return -EFAULT;
+            }
             Mose_led_turn_on(dottime);
             Mose_led_turn_off(dottime);
             code >>=2;
         }
-        else if ((code & mask) == 0x2){
+        else if ((code & mask) == 0x2){ // 010
             Mose_led_turn_off(dottime);
             code >>=1;
         }
-        else if ((code & mask) == 0x1){
+        else if ((code & mask) == 0x1){ // 001
+            if(!kfifo_put(&morse_fifo, '.')){
+                return -EFAULT;
+            }
             Mose_led_turn_on(dottime);
             code >>=1;
         }
     }
-    
+
+    if(!kfifo_put(&morse_fifo, ' ')){
+        return -EFAULT;
+    }
     Mose_led_turn_off(dottime*3);    
+    return 0;
 }
 
 /******************************************************
@@ -172,8 +196,13 @@ static int my_close(struct inode *inode, struct file *file)
 static ssize_t my_read(struct file *file,
 		char *buff,	size_t count, loff_t *ppos)
 {
-	printk(KERN_INFO "morse_code_miscdrv: In my_read()\n");
-	return 0;  // # bytes actually read.
+    int num_bytes_read = 0;
+    
+    if (kfifo_to_user(&morse_fifo, buff, count, &num_bytes_read)){
+        return -EFAULT;
+    }
+    
+    return num_bytes_read;
 }
 
 static ssize_t my_write(struct file *file,
@@ -185,7 +214,9 @@ static ssize_t my_write(struct file *file,
         if (copy_from_user(&ch, &buff[i], sizeof(ch))){
             return -EFAULT;
         }
-        moseCodeGenerator(ch);
+        if(moseCodeGenerator(ch)){
+            return -EFAULT;
+        }
     }
 	// Return # bytes actually written.
 	// Return count here just to make it not call us again!
@@ -228,6 +259,8 @@ static int __init my_init(void)
 {
 	int ret;
 	printk(KERN_INFO "----> more_code_misc driver init(): file /dev/%s.\n", MY_DEVICE_FILE);
+
+    INIT_KFIFO(morse_fifo);
 
 	// Register as a misc driver:
 	ret = misc_register(&my_miscdevice);
