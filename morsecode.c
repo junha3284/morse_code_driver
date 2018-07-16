@@ -106,7 +106,7 @@ static void moseCodeGenerator(char c)
 {
     
     int index;
-    unsigned int mask=0x1;
+    unsigned int mask=0x7;
     unsigned int code;
     if ( 'a' <= c && c <= 'z')
         index = c - 'a';
@@ -121,18 +121,36 @@ static void moseCodeGenerator(char c)
         return;
 
     code = reverseBits(morsecode_codes[index]);
+
+	printk(KERN_INFO "%x\n", code);
+    printk(KERN_INFO "%x\n", code & mask);
+
+    
     while (code != 0){
-        if ((code & mask) == mask){
-            Mose_led_turn_on(dottime);
+        if ((code & mask) == 0x7){
+            Mose_led_turn_on(dottime*3);
+            code >>=3;
         }
-        else {
+        else if ((code & mask) == 0x6){
             Mose_led_turn_off(dottime);
+            code >>=1;
         }
-        code >>=1;
+        else if ((code & mask) == 0x5){
+            Mose_led_turn_on(dottime);
+            Mose_led_turn_off(dottime);
+            code >>=2;
+        }
+        else if ((code & mask) == 0x2){
+            Mose_led_turn_off(dottime);
+            code >>=1;
+        }
+        else if ((code & mask) == 0x1){
+            Mose_led_turn_on(dottime);
+            code >>=1;
+        }
     }
-        
-	led_trigger_event(morse_code, LED_OFF);
-	msleep(dottime*3);
+    
+    Mose_led_turn_off(dottime*3);    
 }
 
 /******************************************************
